@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      VCPKG_ROOT: C:\vcpkg
     steps:
       - name: Checkout source (with CommonLibSSE-NG submodule)
         uses: actions/checkout@v4
