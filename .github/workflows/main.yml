@@ -57,7 +57,3 @@ jobs:
           name: PAR-dll
           path: |
             build/*.dll
-
-          path: |
-            build/Release/*.dll
-
