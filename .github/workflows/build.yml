@@ -42,17 +42,26 @@ jobs:
             -DENABLE_SKYRIM_VR=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Patch clib-util editorID.hpp (A -> W)
+      - name: Patch clib-util editorID.hpp (encoding-safe A -> W)
         shell: pwsh
         run: |
           $found = $false
           Get-ChildItem -Path "$PWD\build\vcpkg_installed" -Recurse -Filter "editorID.hpp" | ForEach-Object {
             $found = $true
-            Write-Host "STEP-PATCH found: $($_.FullName)"
-            $content = Get-Content -Raw $_.FullName
-            $new = $content -replace 'GetModuleHandleA', 'GetModuleHandleW'
-            Set-Content -Path $_.FullName -Value $new -NoNewline
-            Write-Host "STEP-PATCH done, A->W count: $(([regex]::Matches($content,'GetModuleHandleA')).Count)"
+            $sr = New-Object System.IO.StreamReader($_.FullName, $true)
+            $text = $sr.ReadToEnd()
+            $enc = $sr.CurrentEncoding
+            $sr.Close()
+            $cnt = ([regex]::Matches($text, 'GetModuleHandleA')).Count
+            if ($cnt -gt 0) {
+              $new = $text.Replace('GetModuleHandleA', 'GetModuleHandleW')
+              $sw = New-Object System.IO.StreamWriter($_.FullName, $false, $enc)
+              $sw.Write($new)
+              $sw.Close()
+              Write-Host "STEP-PATCH ok: $($_.FullName) replaced $cnt (enc: $($enc.WebName))"
+            } else {
+              Write-Host "STEP-PATCH skip: $($_.FullName) no match (enc: $($enc.WebName))"
+            }
           }
           if (-not $found) { Write-Host "STEP-PATCH WARNING: editorID.hpp not found!" }
 
