@@ -20,15 +20,18 @@ jobs:
           git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
-      - name: Configure (preset ALL = SE + AE + VR)
+      - name: Configure and Build (VS env + preset ALL)
         shell: pwsh
         run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Write-Host "VS Path: $vsPath"
+          Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
           cmake -S . --preset=ALL
-
-      - name: Build Release
-        shell: pwsh
-        run: |
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: List output
         shell: pwsh
@@ -41,3 +44,4 @@ jobs:
           name: PAR-dll
           path: |
             build/Release/*.dll
+
