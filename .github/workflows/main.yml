@@ -20,7 +20,7 @@ jobs:
           git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
-      - name: Configure and Build (Ninja + MSVC, SE+AE+VR)
+      - name: Configure (Ninja + MSVC)
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -43,6 +43,20 @@ jobs:
             -DENABLE_SKYRIM_VR=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Patch clib-util (GetModuleHandleA -> W)
+        shell: pwsh
+        run: |
+          $f = "build\vcpkg_installed\x64-windows-static-md\include\ClibUtil\editorID.hpp"
+          (Get-Content -Raw $f) -replace 'GetModuleHandleA', 'GetModuleHandleW' | Set-Content -NoNewline $f
+          Write-Host "Patched: $f"
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
           cmake --build build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
