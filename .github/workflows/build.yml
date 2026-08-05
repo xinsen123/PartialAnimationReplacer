@@ -42,28 +42,19 @@ jobs:
             -DENABLE_SKYRIM_VR=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Patch clib-util editorID.hpp (encoding-safe A -> W)
+      - name: Patch clib-util editorID.hpp (replace with fixed upstream)
         shell: pwsh
         run: |
-          $found = $false
-          Get-ChildItem -Path "$PWD\build\vcpkg_installed" -Recurse -Filter "editorID.hpp" | ForEach-Object {
-            $found = $true
-            $sr = New-Object System.IO.StreamReader($_.FullName, $true)
-            $text = $sr.ReadToEnd()
-            $enc = $sr.CurrentEncoding
-            $sr.Close()
-            $cnt = ([regex]::Matches($text, 'GetModuleHandleA')).Count
-            if ($cnt -gt 0) {
-              $new = $text.Replace('GetModuleHandleA', 'GetModuleHandleW')
-              $sw = New-Object System.IO.StreamWriter($_.FullName, $false, $enc)
-              $sw.Write($new)
-              $sw.Close()
-              Write-Host "STEP-PATCH ok: $($_.FullName) replaced $cnt (enc: $($enc.WebName))"
-            } else {
-              Write-Host "STEP-PATCH skip: $($_.FullName) no match (enc: $($enc.WebName))"
-            }
+          $targets = @(Get-ChildItem -Path "$PWD\build\vcpkg_installed" -Recurse -Filter "editorID.hpp" -ErrorAction SilentlyContinue)
+          if ($targets.Count -eq 0) {
+            Write-Host "STEP-PATCH WARNING: editorID.hpp not found"
+            exit 1
           }
-          if (-not $found) { Write-Host "STEP-PATCH WARNING: editorID.hpp not found!" }
+          $url = "https://raw.githubusercontent.com/powerof3/CLibUtil/master/include/CLIBUtil/editorID.hpp"
+          foreach ($t in $targets) {
+            Invoke-WebRequest -Uri $url -OutFile $t.FullName -UseBasicParsing
+            Write-Host "STEP-PATCH replaced: $($t.FullName)"
+          }
 
       - name: Build Release
         shell: pwsh
